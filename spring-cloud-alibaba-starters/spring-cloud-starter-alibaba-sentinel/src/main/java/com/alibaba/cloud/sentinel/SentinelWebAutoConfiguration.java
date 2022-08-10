@@ -18,14 +18,13 @@ package com.alibaba.cloud.sentinel;
 
 import java.util.Optional;
 
+import com.alibaba.cloud.sentinel.config.servlet.SentinelConfigRuleConfiguration;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.SentinelWebInterceptor;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.BlockExceptionHandler;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.DefaultBlockExceptionHandler;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.RequestOriginParser;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.UrlCleaner;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.config.SentinelWebMvcConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -35,22 +34,22 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * @author xiaojing
  * @author yuhuangbin
+ * @author <a href="mailto:freemanliu.me@gmail.com">Freeman</a>
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication(type = Type.SERVLET)
 @ConditionalOnProperty(name = "spring.cloud.sentinel.enabled", matchIfMissing = true)
 @ConditionalOnClass(SentinelWebInterceptor.class)
 @EnableConfigurationProperties(SentinelProperties.class)
+@Import(SentinelConfigRuleConfiguration.class)
 public class SentinelWebAutoConfiguration implements WebMvcConfigurer {
-
-	private static final Logger log = LoggerFactory
-			.getLogger(SentinelWebAutoConfiguration.class);
 
 	@Autowired
 	private SentinelProperties properties;
@@ -65,16 +64,14 @@ public class SentinelWebAutoConfiguration implements WebMvcConfigurer {
 	private Optional<RequestOriginParser> requestOriginParserOptional;
 
 	@Bean
-	@ConditionalOnProperty(name = "spring.cloud.sentinel.filter.enabled",
-			matchIfMissing = true)
+	@ConditionalOnProperty(name = "spring.cloud.sentinel.filter.enabled", matchIfMissing = true)
 	public SentinelWebInterceptor sentinelWebInterceptor(
 			SentinelWebMvcConfig sentinelWebMvcConfig) {
 		return new SentinelWebInterceptor(sentinelWebMvcConfig);
 	}
 
 	@Bean
-	@ConditionalOnProperty(name = "spring.cloud.sentinel.filter.enabled",
-			matchIfMissing = true)
+	@ConditionalOnProperty(name = "spring.cloud.sentinel.filter.enabled", matchIfMissing = true)
 	public SentinelWebMvcConfig sentinelWebMvcConfig() {
 		SentinelWebMvcConfig sentinelWebMvcConfig = new SentinelWebMvcConfig();
 		sentinelWebMvcConfig.setHttpMethodSpecify(properties.getHttpMethodSpecify());
@@ -101,8 +98,7 @@ public class SentinelWebAutoConfiguration implements WebMvcConfigurer {
 	}
 
 	@Bean
-	@ConditionalOnProperty(name = "spring.cloud.sentinel.filter.enabled",
-			matchIfMissing = true)
+	@ConditionalOnProperty(name = "spring.cloud.sentinel.filter.enabled", matchIfMissing = true)
 	public SentinelWebMvcConfigurer sentinelWebMvcConfigurer() {
 		return new SentinelWebMvcConfigurer();
 	}

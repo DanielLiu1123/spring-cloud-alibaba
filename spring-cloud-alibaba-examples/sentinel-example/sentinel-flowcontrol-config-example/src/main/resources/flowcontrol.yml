@@ -1,0 +1,37 @@
+spring:
+  cloud:
+    sentinel:
+      flow-control:
+        - predicates:
+            - Path=/a
+          rules:
+            - grade: 1
+              count: 1
+        - predicates:
+            - Path=/b
+          rules:
+            - grade: 1
+              count: 2
+        - predicates:
+            - Path=/c
+          rules:
+            - grade: 1
+              count: 3
+        - predicates:
+            - Header=debug
+          rules:
+            - grade: 1
+              count: 1
+        - predicates:
+            - name: Query
+              args:
+                param: name
+                regexp: freeman
+          rules:
+            - grade: 1
+              count: 2
+        - predicates:
+            - Path=/**
+          rules:
+            - grade: 1
+              count: 10

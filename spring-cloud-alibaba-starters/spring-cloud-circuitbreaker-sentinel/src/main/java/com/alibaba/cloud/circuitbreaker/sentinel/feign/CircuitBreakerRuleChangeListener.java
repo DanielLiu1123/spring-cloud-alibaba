@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.alibaba.cloud.circuitbreaker.sentinel.SentinelConfigBuilder;
 import com.alibaba.csp.sentinel.EntryType;
@@ -140,9 +140,7 @@ public class CircuitBreakerRuleChangeListener implements ApplicationContextAware
 		// first, clear all manually configured feign clients and methods.
 		propertiesBackup.getRules().keySet().stream()
 				.filter(key -> !Objects.equals(key, propertiesBackup.getDefaultRule()))
-				.forEach(resource -> Optional
-						.ofNullable(DegradeRuleManager.getRulesOfResource(resource))
-						.ifPresent(Set::clear));
+				.forEach(this::clearDegradeRules);
 
 		// Find all feign clients, clear the corresponding rules
 		// NOTE: feign client name cannot be the same as the general resource name !!!
@@ -163,10 +161,15 @@ public class CircuitBreakerRuleChangeListener implements ApplicationContextAware
 						return;
 					}
 					String feignClientName = AnnotationUtils.getValue(anno).toString();
-					Optional.ofNullable(
-							DegradeRuleManager.getRulesOfResource(feignClientName))
-							.ifPresent(Set::clear);
+					clearDegradeRules(feignClientName);
 				});
+	}
+
+	private void clearDegradeRules(String resource) {
+		List<DegradeRule> others = DegradeRuleManager.getRules().stream().filter(
+				degradeRule -> !Objects.equals(degradeRule.getResource(), resource))
+				.collect(Collectors.toList());
+		DegradeRuleManager.loadRules(others);
 	}
 
 	private void updateBackup() {

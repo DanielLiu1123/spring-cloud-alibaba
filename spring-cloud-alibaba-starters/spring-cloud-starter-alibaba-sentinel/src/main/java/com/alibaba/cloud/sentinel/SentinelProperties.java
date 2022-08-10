@@ -17,13 +17,17 @@
 package com.alibaba.cloud.sentinel;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 
+import com.alibaba.cloud.sentinel.config.NameUtils;
 import com.alibaba.cloud.sentinel.datasource.config.DataSourcePropertiesConfiguration;
 import com.alibaba.csp.sentinel.config.SentinelConfig;
 import com.alibaba.csp.sentinel.log.LogBase;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.alibaba.csp.sentinel.transport.config.TransportConfig;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -32,6 +36,12 @@ import org.springframework.core.Ordered;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
+import static com.alibaba.cloud.sentinel.SentinelConstants.API_PORT;
+import static com.alibaba.cloud.sentinel.SentinelConstants.CHARSET;
+import static com.alibaba.cloud.sentinel.SentinelConstants.COLD_FACTOR;
+import static com.alibaba.cloud.sentinel.SentinelConstants.PROPERTY_PREFIX;
+import static org.springframework.util.StringUtils.tokenizeToStringArray;
+
 /**
  * {@link ConfigurationProperties} for Sentinel.
  *
@@ -39,8 +49,9 @@ import org.springframework.validation.annotation.Validated;
  * @author hengyunabc
  * @author jiashuai.xie
  * @author <a href="mailto:fangjian0423@gmail.com">Jim</a>
+ * @author <a href="mailto:freemanliu.me@gmail.com">Freeman</a>
  */
-@ConfigurationProperties(prefix = SentinelConstants.PROPERTY_PREFIX)
+@ConfigurationProperties(prefix = PROPERTY_PREFIX)
 @Validated
 public class SentinelProperties {
 
@@ -107,6 +118,16 @@ public class SentinelProperties {
 	 * by default.
 	 */
 	private Boolean webContextUnify = true;
+
+	private List<RouteDefinition> flowControl;
+
+	public List<RouteDefinition> getFlowControl() {
+		return flowControl;
+	}
+
+	public void setFlowControl(List<RouteDefinition> flowControl) {
+		this.flowControl = flowControl;
+	}
 
 	public Boolean getWebContextUnify() {
 		return webContextUnify;
@@ -207,12 +228,51 @@ public class SentinelProperties {
 		this.blockPage = blockPage;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		SentinelProperties that = (SentinelProperties) o;
+		return eager == that.eager && enabled == that.enabled
+				&& Objects.equals(blockPage, that.blockPage)
+				&& Objects.equals(datasource, that.datasource)
+				&& Objects.equals(transport, that.transport)
+				&& Objects.equals(metric, that.metric)
+				&& Objects.equals(servlet, that.servlet)
+				&& Objects.equals(filter, that.filter) && Objects.equals(flow, that.flow)
+				&& Objects.equals(log, that.log)
+				&& Objects.equals(httpMethodSpecify, that.httpMethodSpecify)
+				&& Objects.equals(webContextUnify, that.webContextUnify)
+				&& Objects.equals(flowControl, that.flowControl);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(eager, enabled, blockPage, datasource, transport, metric,
+				servlet, filter, flow, log, httpMethodSpecify, webContextUnify,
+				flowControl);
+	}
+
+	@Override
+	public String toString() {
+		return "SentinelProperties{" + "eager=" + eager + ", enabled=" + enabled
+				+ ", blockPage='" + blockPage + '\'' + ", datasource=" + datasource
+				+ ", transport=" + transport + ", metric=" + metric + ", servlet="
+				+ servlet + ", filter=" + filter + ", flow=" + flow + ", log=" + log
+				+ ", httpMethodSpecify=" + httpMethodSpecify + ", webContextUnify="
+				+ webContextUnify + ", flowControl=" + flowControl + '}';
+	}
+
 	public static class Flow {
 
 		/**
 		 * The cold factor {@link SentinelConfig#COLD_FACTOR}.
 		 */
-		private String coldFactor = SentinelConstants.COLD_FACTOR;
+		private String coldFactor = COLD_FACTOR;
 
 		public String getColdFactor() {
 			return coldFactor;
@@ -232,9 +292,8 @@ public class SentinelProperties {
 		private String blockPage;
 
 		@Deprecated
-		@DeprecatedConfigurationProperty(
-				reason = "replaced to SentinelProperties#blockPage.",
-				replacement = SentinelConstants.PROPERTY_PREFIX + ".block-page")
+		@DeprecatedConfigurationProperty(reason = "replaced to SentinelProperties#blockPage.", replacement = PROPERTY_PREFIX
+				+ ".block-page")
 		public String getBlockPage() {
 			return blockPage;
 		}
@@ -262,7 +321,7 @@ public class SentinelProperties {
 		 * Charset when sentinel write or search metric file.
 		 * {@link SentinelConfig#CHARSET}
 		 */
-		private String charset = SentinelConstants.CHARSET;
+		private String charset = CHARSET;
 
 		public String getFileSingleSize() {
 			return fileSingleSize;
@@ -295,7 +354,7 @@ public class SentinelProperties {
 		/**
 		 * Sentinel api port, default value is 8719 {@link TransportConfig#SERVER_PORT}.
 		 */
-		private String port = SentinelConstants.API_PORT;
+		private String port = API_PORT;
 
 		/**
 		 * Sentinel dashboard address, won't try to connect dashboard when address is
@@ -421,6 +480,115 @@ public class SentinelProperties {
 			this.switchPid = switchPid;
 		}
 
+	}
+
+	public static class RouteDefinition {
+		private List<RouteDefinition.PredicateDefinition> predicates;
+		private List<FlowRule> rules;
+
+		public RouteDefinition() {
+		}
+
+		public List<PredicateDefinition> getPredicates() {
+			return this.predicates;
+		}
+
+		public List<FlowRule> getRules() {
+			return this.rules;
+		}
+
+		public void setPredicates(List<PredicateDefinition> predicates) {
+			this.predicates = predicates;
+		}
+
+		public void setRules(List<FlowRule> rules) {
+			this.rules = rules;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			RouteDefinition that = (RouteDefinition) o;
+			return Objects.equals(predicates, that.predicates)
+					&& Objects.equals(rules, that.rules);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(predicates, rules);
+		}
+
+		@Override
+		public String toString() {
+			return "RouteDefinition{" + "predicates=" + predicates + ", rules=" + rules
+					+ '}';
+		}
+
+		public static class PredicateDefinition {
+			private String name;
+			private Map<String, String> args = new LinkedHashMap<>();
+
+			public PredicateDefinition(String name) {
+				int eqIdx = name.indexOf('=');
+				if (eqIdx <= 0) {
+					throw new RuntimeException("Unable to parse RouteDefinition text '"
+							+ name + "'" + ", must be of the form name=value");
+				}
+				setName(name.substring(0, eqIdx));
+
+				String[] args = tokenizeToStringArray(name.substring(eqIdx + 1), ",");
+				for (int i = 0; i < args.length; i++) {
+					this.args.put(NameUtils.GENERATED_NAME_PREFIX + i, args[i]);
+				}
+			}
+
+			public PredicateDefinition() {
+			}
+
+			public String getName() {
+				return this.name;
+			}
+
+			public Map<String, String> getArgs() {
+				return this.args;
+			}
+
+			public void setName(String name) {
+				this.name = name;
+			}
+
+			public void setArgs(Map<String, String> args) {
+				this.args = args;
+			}
+
+			@Override
+			public boolean equals(Object o) {
+				if (this == o) {
+					return true;
+				}
+				if (o == null || getClass() != o.getClass()) {
+					return false;
+				}
+				PredicateDefinition that = (PredicateDefinition) o;
+				return Objects.equals(name, that.name) && Objects.equals(args, that.args);
+			}
+
+			@Override
+			public int hashCode() {
+				return Objects.hash(name, args);
+			}
+
+			@Override
+			public String toString() {
+				return "PredicateDefinition{" + "name='" + name + '\'' + ", args=" + args
+						+ '}';
+			}
+		}
 	}
 
 }
